@@ -137,6 +137,18 @@ RESERVE_OPTION_MAP = {
     "special-first": ReserveOption.SPECIAL_FIRST,
     "special-only": ReserveOption.SPECIAL_ONLY,
 }
+
+
+def normalize_login_id(login_id: str) -> str:
+    normalized = login_id.strip()
+    if normalized.startswith("+82"):
+        normalized = "0" + normalized[3:]
+    digits_only = re.sub(r"[\s-]", "", normalized)
+    if re.fullmatch(r"01\d{8,9}", digits_only):
+        if len(digits_only) == 11:
+            return f"{digits_only[:3]}-{digits_only[3:7]}-{digits_only[7:]}"
+        return f"{digits_only[:3]}-{digits_only[3:6]}-{digits_only[6:]}"
+    return normalized
 TRAIN_TYPE_MAP = {
     "ktx": TrainType.KTX,                       # 100 — KTX/KTX-산천
     "itx-saemaeul": TrainType.ITX_SAEMAEUL,     # 101 — ITX-새마을
@@ -325,8 +337,8 @@ class PatchedKorail(Korail):
     def login(self, korail_id: str | None = None, korail_pw: str | None = None) -> bool:
         if korail_id is None:
             korail_id = self.korail_id
-        else:
-            self.korail_id = korail_id
+        self.korail_id = normalize_login_id(korail_id)
+        korail_id = self.korail_id
 
         if korail_pw is None:
             korail_pw = self.korail_pw
