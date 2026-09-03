@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KTX Finder</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="shell">
+    <section class="intro">
+      <p class="eyebrow">KORAIL / LOCAL SEARCH</p>
+      <h1>다음 여정을<br><em>시간표로 먼저.</em></h1>
+      <p class="lede">코레일 계정으로 로그인해 원하는 구간의 KTX 시간표를 확인하세요.</p>
+      <div class="note"><strong>개인정보 보호</strong><span>ID와 비밀번호는 검색 요청 중에만 사용되며 저장하지 않습니다.</span></div>
+    </section>
+
+    <section class="panel">
+      <form id="search-form" method="post">
+        <div class="section-title"><span>01</span><h2>로그인</h2></div>
+        <div class="fields two">
+          <label>코레일 ID<input name="korail_id" value="{{ request.form.get('korail_id', '') }}" type="text" autocomplete="username" placeholder="회원번호, 이메일 또는 전화번호" required></label>
+          <label>비밀번호<input name="korail_password" value="{{ request.form.get('korail_password', '') }}" type="password" autocomplete="current-password" required></label>
+        </div>
+
+        <div class="section-title route-title"><span>02</span><h2>여정 선택</h2></div>
+        <div class="fields route">
+          <label>출발역<input name="dep" value="{{ form.dep }}" placeholder="서울" required></label>
+          <div class="swap">→</div>
+          <label>도착역<input name="arr" value="{{ form.arr }}" placeholder="부산" required></label>
+          <label>날짜<input name="date" value="{{ form.date }}" pattern="[0-9]{8}" placeholder="YYYYMMDD" required></label>
+          <label>출발 시각<input name="time" value="{{ form.time }}" pattern="[0-9]{6}" placeholder="HHMMSS" required></label>
+          <label>열차 종류<select name="train_type">
+            {% for value, label in [('ktx', 'KTX'), ('itx-saemaeul', 'ITX-새마을'), ('mugunghwa', '무궁화호'), ('all', '전체')] %}
+            <option value="{{ value }}" {% if form.train_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select></label>
+          <label class="passenger-count">예약 매수<input name="passenger_count" value="{{ form.passenger_count }}" type="number" min="1" max="9" required></label>
+        </div>
+        <button type="submit">열차 조회 <span>↗</span></button>
+      </form>
+      <div class="macro-box"><div><p class="eyebrow">CANCEL TICKET WATCHER</p><strong>선택 시간대 취소표 자동 확인</strong><p id="macro-status">시간대를 체크한 뒤 시작하세요.</p></div><div class="macro-actions"><button id="macro-start" type="button">자동 예약 시작</button><button id="macro-stop" type="button" disabled>정지</button></div></div>
+
+      {% if error %}<div class="error">{{ error }}{% if needs_password_reset %}<a href="https://www.korail.com/" target="_blank" rel="noopener">코레일 공식 홈페이지에서 비밀번호 찾기</a>{% endif %}</div>{% endif %}
+      {% if reservation %}<div class="success"><p class="eyebrow">RESERVATION COMPLETE</p><h2>예약이 접수되었습니다.</h2><p>{{ reservation.description }}</p><small>예약번호 {{ reservation.reservation_id }} · 결제기한 {{ reservation.buy_limit_date }} {{ reservation.buy_limit_time }}</small></div>{% endif %}
+      {% if trains %}
+      <div class="results">
+        <div class="results-head"><div><p class="eyebrow">AVAILABLE TRAINS</p><h2>{{ form.dep }} <b>→</b> {{ form.arr }}</h2></div><span>{{ trains|length }}편</span></div>
+        {% for train in trains %}
+        <article class="train"><label class="train-check"><input type="checkbox" name="train_id" value="{{ train.train_id }}" form="search-form"><span></span></label><div class="time"><strong>{{ train.dep_time[:2] }}:{{ train.dep_time[2:4] }}</strong><small>{{ train.dep_name }}</small></div><div class="line"><i></i><span>{{ train.train_type }}</span><i></i></div><div class="time right"><strong>{{ train.arr_time[:2] }}:{{ train.arr_time[2:4] }}</strong><small>{{ train.arr_name }}</small></div><div class="seat {% if train.has_general_seat %}open{% endif %}">{{ '일반실 가능' if train.has_general_seat else '일반실 매진' }}</div>{% if train.has_general_seat %}<form class="reserve-form" method="post" action="{{ url_for('reserve') }}" onsubmit="return confirm('이 열차를 예약하시겠습니까?')"><input type="hidden" name="korail_id" value="{{ request.form.get('korail_id', '') }}"><input type="hidden" name="korail_password" value="{{ request.form.get('korail_password', '') }}"><input type="hidden" name="dep" value="{{ form.dep }}"><input type="hidden" name="arr" value="{{ form.arr }}"><input type="hidden" name="date" value="{{ form.date }}"><input type="hidden" name="time" value="{{ form.time }}"><input type="hidden" name="train_type" value="{{ form.train_type }}"><input type="hidden" name="passenger_count" value="{{ form.passenger_count }}"><input type="hidden" name="train_id" value="{{ train.train_id }}"><button type="submit">예약</button></form>{% endif %}</article>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+  </main>
+  <script>
+    const searchForm = document.getElementById('search-form');
+    const statusText = document.getElementById('macro-status');
+    const startButton = document.getElementById('macro-start');
+    const stopButton = document.getElementById('macro-stop');
+    let statusTimer;
+    let audioContext;
+    let announcedReservation = {% if reservation %}true{% else %}false{% endif %};
+    function enableAudio() {
+      audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContext.state === 'suspended') audioContext.resume();
+    }
+    function playSuccessSound() {
+      enableAudio();
+      const now = audioContext.currentTime;
+      [0, 0.13, 0.26, 0.39].forEach((offset, index) => {
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.frequency.value = [784, 988, 1175, 1568][index];
+        oscillator.type = 'triangle';
+        gain.gain.setValueAtTime(0.0001, now + offset);
+        gain.gain.exponentialRampToValueAtTime(0.32, now + offset + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.2);
+        oscillator.connect(gain).connect(audioContext.destination);
+        oscillator.start(now + offset);
+        oscillator.stop(now + offset + 0.21);
+      });
+    }
+    document.addEventListener('pointerdown', enableAudio, {once: true});
+    function updateStatus(state) {
+      statusText.textContent = state.reservation ? '예약 성공' : `${state.message} (${state.attempts}회)`;
+      startButton.disabled = state.running;
+      stopButton.disabled = !state.running;
+      if (state.reservation) {
+        statusText.textContent += ` · 예약번호 ${state.reservation.reservation_id}`;
+        if (!announcedReservation) {
+          announcedReservation = true;
+          playSuccessSound();
+        }
+      }
+    }
+    async function pollStatus() {
+      const response = await fetch('/macro/status');
+      updateStatus(await response.json());
+    }
+    startButton.addEventListener('click', async () => {
+      enableAudio();
+      if (!confirm('좌석이 생기면 자동으로 예약합니다. 시작할까요?')) return;
+      const response = await fetch('/macro/start', {method: 'POST', body: new FormData(searchForm)});
+      const state = await response.json();
+      if (!response.ok) { alert(state.error); return; }
+      updateStatus(state);
+      clearInterval(statusTimer);
+      statusTimer = setInterval(pollStatus, 2000);
+    });
+    stopButton.addEventListener('click', async () => {
+      await fetch('/macro/stop', {method: 'POST'});
+      await pollStatus();
+    });
+    if (announcedReservation) playSuccessSound();
+    pollStatus();
+  </script>
+</body>
+</html>
