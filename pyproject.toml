@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "korail2-ncard"
 version = "0.1.0"
 description = "Korail wrapper with a Flask web application"
+readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.9"
 dependencies = [
 	"Flask>=3.0,<4",
