@@ -1,3 +1,15 @@
 [build-system]
 requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "korail2-ncard"
+version = "0.1.0"
+description = "Korail wrapper with a Flask web application"
+requires-python = ">=3.9"
+dependencies = [
+	"Flask>=3.0,<4",
+	"requests>=2.31,<3",
+	"six>=1.16,<2",
+	"pycryptodome>=3.19,<4",
+]
