@@ -1,0 +1,4 @@
+Flask>=3.0,<4
+requests>=2.31,<3
+six>=1.16,<2
+pycryptodome>=3.19,<4
