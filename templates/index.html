@@ -39,7 +39,7 @@
         </div>
         <button type="submit">열차 조회 <span>↗</span></button>
       </form>
-      <div class="macro-box"><div><p class="eyebrow">CANCEL TICKET WATCHER</p><strong>선택 시간대 취소표 자동 확인</strong><p id="macro-status">시간대를 체크한 뒤 시작하세요.</p></div><div class="macro-actions"><button id="macro-start" type="button">자동 예약 시작</button><button id="macro-stop" type="button" disabled>정지</button></div></div>
+      <div class="macro-box"><div><p class="eyebrow">CANCEL TICKET WATCHER</p><strong>선택 시간대 취소표 자동 확인</strong><p id="macro-status">시간대를 체크한 뒤 시작하세요.</p></div><div class="macro-actions"><button id="audio-enable" type="button">알림음 켜기</button><button id="macro-start" type="button">자동 예약 시작</button><button id="macro-stop" type="button" disabled>정지</button></div></div>
 
       {% if error %}<div class="error">{{ error }}{% if needs_password_reset %}<a href="https://www.korail.com/" target="_blank" rel="noopener">코레일 공식 홈페이지에서 비밀번호 찾기</a>{% endif %}</div>{% endif %}
       {% if reservation %}<div class="success"><p class="eyebrow">RESERVATION COMPLETE</p><h2>예약이 접수되었습니다.</h2><p>{{ reservation.description }}</p><small>예약번호 {{ reservation.reservation_id }} · 결제기한 {{ reservation.buy_limit_date }} {{ reservation.buy_limit_time }}</small></div>{% endif %}
@@ -47,7 +47,7 @@
       <div class="results">
         <div class="results-head"><div><p class="eyebrow">AVAILABLE TRAINS</p><h2>{{ form.dep }} <b>→</b> {{ form.arr }}</h2></div><span>{{ trains|length }}편</span></div>
         {% for train in trains %}
-        <article class="train"><label class="train-check"><input type="checkbox" name="train_id" value="{{ train.train_id }}" form="search-form"><span></span></label><div class="time"><strong>{{ train.dep_time[:2] }}:{{ train.dep_time[2:4] }}</strong><small>{{ train.dep_name }}</small></div><div class="line"><i></i><span>{{ train.train_type }}</span><i></i></div><div class="time right"><strong>{{ train.arr_time[:2] }}:{{ train.arr_time[2:4] }}</strong><small>{{ train.arr_name }}</small></div><div class="seat {% if train.has_general_seat %}open{% endif %}">{{ '일반실 가능' if train.has_general_seat else '일반실 매진' }}</div>{% if train.has_general_seat %}<form class="reserve-form" method="post" action="{{ url_for('reserve') }}" onsubmit="return confirm('이 열차를 예약하시겠습니까?')"><input type="hidden" name="korail_id" value="{{ request.form.get('korail_id', '') }}"><input type="hidden" name="korail_password" value="{{ request.form.get('korail_password', '') }}"><input type="hidden" name="dep" value="{{ form.dep }}"><input type="hidden" name="arr" value="{{ form.arr }}"><input type="hidden" name="date" value="{{ form.date }}"><input type="hidden" name="time" value="{{ form.time }}"><input type="hidden" name="train_type" value="{{ form.train_type }}"><input type="hidden" name="passenger_count" value="{{ form.passenger_count }}"><input type="hidden" name="train_id" value="{{ train.train_id }}"><button type="submit">예약</button></form>{% endif %}</article>
+        <article class="train"><label class="train-check"><input type="checkbox" name="train_id" value="{{ train.train_id }}" form="search-form"><span></span></label><div class="time"><strong>{{ train.dep_time[:2] }}:{{ train.dep_time[2:4] }}</strong><small>{{ train.dep_name }}</small></div><div class="line"><i></i><span>{{ train.train_type }}</span><i></i></div><div class="time right"><strong>{{ train.arr_time[:2] }}:{{ train.arr_time[2:4] }}</strong><small>{{ train.arr_name }}</small></div><div class="seat {% if train.has_general_seat %}open{% endif %}">{{ '일반실 가능' if train.has_general_seat else '일반실 매진' }}</div>{% if train.has_general_seat %}<form class="reserve-form" method="post" action="{{ url_for('reserve') }}"><input type="hidden" name="korail_id" value="{{ request.form.get('korail_id', '') }}"><input type="hidden" name="korail_password" value="{{ request.form.get('korail_password', '') }}"><input type="hidden" name="dep" value="{{ form.dep }}"><input type="hidden" name="arr" value="{{ form.arr }}"><input type="hidden" name="date" value="{{ form.date }}"><input type="hidden" name="time" value="{{ form.time }}"><input type="hidden" name="train_type" value="{{ form.train_type }}"><input type="hidden" name="passenger_count" value="{{ form.passenger_count }}"><input type="hidden" name="train_id" value="{{ train.train_id }}"><button type="submit">예약</button></form>{% endif %}</article>
         {% endfor %}
       </div>
       {% endif %}
@@ -56,17 +56,32 @@
   <script>
     const searchForm = document.getElementById('search-form');
     const statusText = document.getElementById('macro-status');
+    const audioButton = document.getElementById('audio-enable');
     const startButton = document.getElementById('macro-start');
     const stopButton = document.getElementById('macro-stop');
     let statusTimer;
     let audioContext;
     let announcedReservation = {% if reservation %}true{% else %}false{% endif %};
-    function enableAudio() {
-      audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
-      if (audioContext.state === 'suspended') audioContext.resume();
+    async function enableAudio() {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return false;
+      audioContext = audioContext || new AudioContextClass();
+      if (audioContext.state === 'suspended') {
+        try {
+          await audioContext.resume();
+        } catch (error) {
+          return false;
+        }
+      }
+      const buffer = audioContext.createBuffer(1, 1, 22050);
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.destination);
+      source.start(0);
+      return audioContext.state === 'running';
     }
-    function playSuccessSound() {
-      enableAudio();
+    async function playSuccessSound() {
+      if (!await enableAudio()) return;
       const now = audioContext.currentTime;
       [0, 0.13, 0.26, 0.39].forEach((offset, index) => {
         const oscillator = audioContext.createOscillator();
@@ -82,6 +97,24 @@
       });
     }
     document.addEventListener('pointerdown', enableAudio, {once: true});
+    document.querySelectorAll('.reserve-form').forEach((form) => {
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!confirm('이 열차를 예약하시겠습니까?')) return;
+        await enableAudio();
+        const response = await fetch(form.action, {method: 'POST', body: new FormData(form)});
+        const nextDocument = new DOMParser().parseFromString(await response.text(), 'text/html');
+        document.body.innerHTML = nextDocument.body.innerHTML;
+        document.title = nextDocument.title;
+        if (nextDocument.querySelector('.success')) await playSuccessSound();
+      });
+    });
+    audioButton.addEventListener('click', async () => {
+      if (await enableAudio()) {
+        audioButton.textContent = '알림음 켜짐';
+        audioButton.disabled = true;
+      }
+    });
     function updateStatus(state) {
       statusText.textContent = state.reservation ? '예약 성공' : `${state.message} (${state.attempts}회)`;
       startButton.disabled = state.running;
@@ -95,18 +128,23 @@
       }
     }
     async function pollStatus() {
-      const response = await fetch('/macro/status');
-      updateStatus(await response.json());
+      const response = await fetch(`/macro/status?t=${Date.now()}`, {cache: 'no-store'});
+      const state = await response.json();
+      updateStatus(state);
+      if (!state.running && statusTimer) {
+        clearInterval(statusTimer);
+        statusTimer = null;
+      }
     }
     startButton.addEventListener('click', async () => {
-      enableAudio();
+      await enableAudio();
       if (!confirm('좌석이 생기면 자동으로 예약합니다. 시작할까요?')) return;
       const response = await fetch('/macro/start', {method: 'POST', body: new FormData(searchForm)});
       const state = await response.json();
       if (!response.ok) { alert(state.error); return; }
       updateStatus(state);
       clearInterval(statusTimer);
-      statusTimer = setInterval(pollStatus, 2000);
+      statusTimer = setInterval(pollStatus, 1000);
     });
     stopButton.addEventListener('click', async () => {
       await fetch('/macro/stop', {method: 'POST'});
