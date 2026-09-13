@@ -54,11 +54,15 @@ button span { float: right; font-size: 19px; line-height: 12px; }
 .macro-actions button:last-child { background: #e5e8ee; color: var(--ink); }
 .macro-actions button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .results { margin-top: 46px; padding-top: 28px; border-top: 1px solid var(--line); }
-.results-head { display: flex; justify-content: space-between; align-items: end; margin-bottom: 14px; }
+.results-head { display: flex; justify-content: space-between; align-items: end; margin-bottom: 14px; gap: 18px; }
 .results-head .eyebrow { margin-bottom: 8px; }
 .results-head h2 { margin: 0; font-size: 23px; letter-spacing: -.04em; }
 .results-head h2 b { color: var(--coral); font-weight: 400; }
-.results-head > span { color: var(--muted); font: 12px 'DM Mono', monospace; }
+.results-controls { display: flex; align-items: center; gap: 12px; }
+.results-controls > span { color: var(--muted); font: 12px 'DM Mono', monospace; }
+.select-all-toggle { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--line); background: var(--surface-soft); color: var(--ink); cursor: pointer; font-size: 12px; }
+.select-all-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--blue); }
+.select-all-toggle span { user-select: none; }
 .train { display: grid; grid-template-columns: 30px 80px minmax(80px, 1fr) 80px auto; gap: 14px; align-items: center; padding: 18px 0; border-top: 1px solid var(--line); }
 .train-check { display: block; position: relative; width: 20px; height: 20px; }
 .train-check input { position: absolute; width: 20px; height: 20px; margin: 0; opacity: 0; }

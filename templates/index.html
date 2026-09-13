@@ -45,7 +45,16 @@
       {% if reservation %}<div class="success"><p class="eyebrow">RESERVATION COMPLETE</p><h2>예약이 접수되었습니다.</h2><p>{{ reservation.description }}</p><small>예약번호 {{ reservation.reservation_id }} · 결제기한 {{ reservation.buy_limit_date }} {{ reservation.buy_limit_time }}</small></div>{% endif %}
       {% if trains %}
       <div class="results">
-        <div class="results-head"><div><p class="eyebrow">AVAILABLE TRAINS</p><h2>{{ form.dep }} <b>→</b> {{ form.arr }}</h2></div><span>{{ trains|length }}편</span></div>
+        <div class="results-head">
+          <div><p class="eyebrow">AVAILABLE TRAINS</p><h2>{{ form.dep }} <b>→</b> {{ form.arr }}</h2></div>
+          <div class="results-controls">
+            <span>{{ trains|length }}편</span>
+            <label class="select-all-toggle" for="select-all-trains">
+              <input id="select-all-trains" type="checkbox" aria-label="모든 열차 선택">
+              <span>모두 선택</span>
+            </label>
+          </div>
+        </div>
         {% for train in trains %}
         <article class="train"><label class="train-check"><input type="checkbox" name="train_id" value="{{ train.train_id }}" form="search-form"><span></span></label><div class="time"><strong>{{ train.dep_time[:2] }}:{{ train.dep_time[2:4] }}</strong><small>{{ train.dep_name }}</small></div><div class="line"><i></i><span>{{ train.train_type }}</span><i></i></div><div class="time right"><strong>{{ train.arr_time[:2] }}:{{ train.arr_time[2:4] }}</strong><small>{{ train.arr_name }}</small></div><div class="seat {% if train.has_general_seat %}open{% endif %}">{{ '일반실 가능' if train.has_general_seat else '일반실 매진' }}</div>{% if train.has_general_seat %}<form class="reserve-form" method="post" action="{{ url_for('reserve') }}"><input type="hidden" name="korail_id" value="{{ request.form.get('korail_id', '') }}"><input type="hidden" name="korail_password" value="{{ request.form.get('korail_password', '') }}"><input type="hidden" name="dep" value="{{ form.dep }}"><input type="hidden" name="arr" value="{{ form.arr }}"><input type="hidden" name="date" value="{{ form.date }}"><input type="hidden" name="time" value="{{ form.time }}"><input type="hidden" name="train_type" value="{{ form.train_type }}"><input type="hidden" name="passenger_count" value="{{ form.passenger_count }}"><input type="hidden" name="train_id" value="{{ train.train_id }}"><button type="submit">예약</button></form>{% endif %}</article>
         {% endfor %}
@@ -136,6 +145,31 @@
         statusTimer = null;
       }
     }
+    const selectAllCheckbox = document.getElementById('select-all-trains');
+    function syncSelectAllCheckbox() {
+      if (!selectAllCheckbox) return;
+      const trainCheckboxes = [...document.querySelectorAll('input[name="train_id"]')];
+      if (!trainCheckboxes.length) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.disabled = true;
+        return;
+      }
+      const allChecked = trainCheckboxes.every((checkbox) => checkbox.checked);
+      selectAllCheckbox.disabled = false;
+      selectAllCheckbox.checked = allChecked && trainCheckboxes.length > 0;
+    }
+    selectAllCheckbox?.addEventListener('change', () => {
+      const trainCheckboxes = [...document.querySelectorAll('input[name="train_id"]')];
+      if (!trainCheckboxes.length) return;
+      trainCheckboxes.forEach((checkbox) => {
+        checkbox.checked = selectAllCheckbox.checked;
+      });
+    });
+    document.addEventListener('change', (event) => {
+      if (event.target.matches('input[name="train_id"]')) {
+        syncSelectAllCheckbox();
+      }
+    });
     startButton.addEventListener('click', async () => {
       await enableAudio();
       if (!confirm('좌석이 생기면 자동으로 예약합니다. 시작할까요?')) return;
@@ -150,6 +184,7 @@
       await fetch('/macro/stop', {method: 'POST'});
       await pollStatus();
     });
+    syncSelectAllCheckbox();
     if (announcedReservation) playSuccessSound();
     pollStatus();
   </script>
