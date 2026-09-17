@@ -368,7 +368,9 @@ class PatchedKorail(Korail):
         data = json.loads(response.text)
         self.login_message = str(data.get("h_msg_txt") or data.get("msg") or "")
         self.login_message_code = str(data.get("h_msg_cd") or "")
-        if data["strResult"] == "SUCC" and data.get("strMbCrdNo") is not None:
+        if data.get("strResult") == "SUCC" and data.get("strMbCrdNo") is not None:
+            if not data.get("Key"):
+                raise KorailError(self.login_message or "로그인 응답에 인증 정보가 없습니다.", self.login_message_code)
             self._key = data["Key"]
             self.membership_number = data["strMbCrdNo"]
             self.name = data["strCustNm"]
@@ -439,7 +441,14 @@ class PatchedKorail(Korail):
         response = self._session.post(korail_mod.KORAIL_SEARCH_SCHEDULE, params=payload, headers=headers)
         data = json.loads(response.text)
         if self._result_check(data):
-            trains = [korail_mod.Train(info) for info in data["trn_infos"]["trn_info"]]
+            train_data = data.get("trn_infos") or {}
+            train_infos = train_data.get("trn_info") if isinstance(train_data, dict) else None
+            if train_infos is None:
+                message = data.get("h_msg_txt") or data.get("msg") or "열차 조회 응답 형식이 올바르지 않습니다."
+                raise KorailError(str(message), data.get("h_msg_cd"))
+            if isinstance(train_infos, dict):
+                train_infos = [train_infos]
+            trains = [korail_mod.Train(info) for info in train_infos]
             trains = [train for train in trains if train.dep_name == dep and train.arr_name == arr]
             filters = [lambda train: train.has_seat()]
             if include_no_seats:
