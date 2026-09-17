@@ -372,7 +372,7 @@ class PatchedKorail(Korail):
 
         response = self._session.post(korail_mod.KORAIL_LOGIN, data=payload, headers=headers)
         data = json.loads(response.text)
-        self.login_message = str(data.get("h_msg_txt") or data.get("msg") or "")
+        self.login_message = str(data.get("h_msg_txt") or data.get("msg") or "").strip()
         self.login_message_code = str(data.get("h_msg_cd") or "")
         if data.get("strResult") == "SUCC" and data.get("strMbCrdNo") is not None:
             if not data.get("Key"):
@@ -385,6 +385,9 @@ class PatchedKorail(Korail):
             return True
 
         self.logined = False
+        if not self.login_message:
+            code = self.login_message_code or "응답 코드 없음"
+            self.login_message = f"코레일 로그인 실패 (코드: {code})"
         return False
 
     def search_train(
