@@ -390,7 +390,12 @@ class PatchedKorail(Korail):
             if not result:
                 fields = ", ".join(sorted(data.keys())) or "없음"
                 status = getattr(response, "status_code", "알 수 없음")
-                self.login_message = f"코레일 응답 형식 오류 (HTTP {status}, 필드: {fields})"
+                response_code = data.get("code") or self.login_message_code or "없음"
+                response_message = data.get("message") or "없음"
+                self.login_message = (
+                    f"코레일 API 접근 거부 (HTTP {status}, code: {response_code}, "
+                    f"message: {response_message}, 필드: {fields})"
+                )
             else:
                 code = self.login_message_code or "응답 코드 없음"
                 self.login_message = f"코레일 로그인 실패 (코드: {code})"
