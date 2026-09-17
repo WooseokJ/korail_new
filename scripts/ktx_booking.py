@@ -149,6 +149,12 @@ def normalize_login_id(login_id: str) -> str:
             return f"{digits_only[:3]}-{digits_only[3:7]}-{digits_only[7:]}"
         return f"{digits_only[:3]}-{digits_only[3:6]}-{digits_only[6:]}"
     return normalized
+
+
+def is_phone_login_id(login_id: str) -> bool:
+    return re.fullmatch(r"01\d-\d{3,4}-\d{4}", login_id) is not None
+
+
 TRAIN_TYPE_MAP = {
     "ktx": TrainType.KTX,                       # 100 — KTX/KTX-산천
     "itx-saemaeul": TrainType.ITX_SAEMAEUL,     # 101 — ITX-새마을
@@ -347,7 +353,7 @@ class PatchedKorail(Korail):
 
         if korail_mod.EMAIL_REGEX.match(korail_id):
             input_flag = "5"
-        elif korail_mod.PHONE_NUMBER_REGEX.match(korail_id):
+        elif is_phone_login_id(korail_id):
             input_flag = "4"
         else:
             input_flag = "2"

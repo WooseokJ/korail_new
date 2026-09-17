@@ -19,7 +19,7 @@
       <form id="search-form" method="post">
         <div class="section-title"><span>01</span><h2>로그인</h2></div>
         <div class="fields two">
-          <label>코레일 ID<input name="korail_id" value="{{ request.form.get('korail_id', '') }}" type="text" autocomplete="username" placeholder="회원번호, 이메일 또는 전화번호" required></label>
+          <label>코레일 ID 또는 전화번호<input name="korail_id" value="{{ request.form.get('korail_id', '') }}" type="text" autocomplete="username" placeholder="회원번호, 이메일 또는 010-1234-5678" required></label>
           <label>비밀번호<input name="korail_password" value="{{ request.form.get('korail_password', '') }}" type="password" autocomplete="current-password" required></label>
         </div>
 
